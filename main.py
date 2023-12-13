@@ -1,15 +1,38 @@
 import numpy as np
 import keras
 from keras import layers
+import sys
+import tensorflow as tf
 from random import random, randint, sample
+import keras.backend as K
 
+print(tf.executing_eagerly())
 # Q-learning with function approximation
 
-aa = np.array([[1, 2, 3], [4, 5, 6]])
+# aa = np.array([[1, 2, 3], [4, 5, 6]])
 
-print(aa[:, -1].shape)
+# print(aa[:, -1].shape)
 
-exit()
+# exit()
+
+class CustomLayer(tf.keras.layers.Layer):
+    def __init__(self):
+        super(CustomLayer, self).__init__()
+
+    def call(self, inputs):
+        # Perform operations on inputs (y_pred)
+        print('shiiiiiiiiiitttt')
+        print(inputs[0])
+        modified_pred = inputs * 2  # Example: Doubling the values
+
+        # Return modified y_pred
+        return modified_pred
+
+@tf.function
+def f(value):
+    # tensor = tf.range(10)
+    tf.print(value, output_stream=sys.stderr)
+    # return tensor
 
 p_a = 0.1
 p_b = 0.7
@@ -46,18 +69,37 @@ policy_model = keras.Sequential(
         layers.Dense(16, activation="relu", name="layer2"),
         layers.Dense(8, activation="relu", name="layer3"),
         layers.Dense(2, name="layer4"),
+        CustomLayer()
     ]
 )
 
+def asymmetric_loss(new_ans_1):
+    def loss(y_true, y_pred):
+        tf.print("y_pred values:", y_pred)
+        y_pred_values = tf.unstack(y_pred, axis=-1)  # Unstack to access individual values
+        for value in y_pred_values:
+            print("Value:", value)
+
+        ans = tf.convert_to_tensor(new_ans_1)
+        # print(type(ans))
+        print(ans)
+        return shit
+        
+    return loss
+
 policy_model.build(input_shape=(1, 4))
-policy_model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001), loss='mean_squared_error')
+policy_model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001), loss=asymmetric_loss(0))
 
 
 target_model = keras.models.clone_model(policy_model)
-target_model.build(input_shape=(1, 4))
-target_model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001), loss='mean_squared_error')
+target_model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001), loss=asymmetric_loss(0))
 target_model.set_weights(policy_model.get_weights())
 
+# print(policy_model.get_weights())
+# print('######################################################')
+# print(target_model.get_weights())
+
+# exit()
 current_Q = np.zeros((number_of_states, number_of_acitons))
 
 for e in range(100000):
@@ -151,56 +193,53 @@ for e in range(100000):
                 policy_network_input = np.vstack([policy_network_input, np.array([replay_memory[l, 0], states_hash[s_1, 0], states_hash[s_1, 1], states_hash[s_1, 2]])])
             
         if len(policy_network_input) > 0:
-            # policy_network_input = policy_network_input.reshape((1, 160))
-            print(policy_network_input)
-            print(policy_network_input.shape)
-            # policy_model.train_on_batch(x=policy_network_input, y=None, sample_weight=None, class_weight=None, return_dict=False)
             ans_1 = policy_model.predict(x=policy_network_input, batch_size=None, verbose="auto", steps=None, callbacks=None)
 
-            for l in range(len(ans_1)):
-                current_Q[policy_network_input[l, 0]] = np.copy(ans_1[l])
+            new_ans_1 = np.array([[0]])
+            new_ans_1 = np.delete(new_ans_1, (0), axis=0)
 
-            for l in len(ans_1):
-                new_ans_1 = np.array([[0]])
-                new_ans_1 = np.delete(new_ans_1, (0), axis=0)
+            for l in range(len(ans_1)):
                 new_ans_1 = np.vstack([new_ans_1, np.array([ans_1[l, replay_memory[rnumber[l], 1] - 1]])])
-            
 
             for l in rnumber:
                 s_2 = replay_memory[l, 2]
-
                 #target_network_input = np.vstack([target_network_input, np.array([j, states_hash[s_1, 0], states_hash[s_1, 1], states_hash[s_1, 2], replay_memory[l, 1], k, states_hash[s_2, 0], states_hash[s_2, 1], states_hash[s_2, 2], replay_memory[l, 3]])])
                 target_network_input = np.vstack([target_network_input, np.array([replay_memory[l, 2], states_hash[s_2, 0], states_hash[s_2, 1], states_hash[s_2, 2]])])
 
-
             ans_2 = target_model.predict(x=target_network_input, batch_size=None, verbose="auto", steps=None, callbacks=None)
 
-            new_ans_2 = np.max(ans_2, axis=1)
+            new_ans_2 = np.max(ans_2, axis=1).reshape((16, 1))
 
             state_rewards = np.array([[0]])
             state_rewards = np.delete(state_rewards, (0), axis=0)
+
             for l in rnumber:
                 state_rewards = np.vstack([state_rewards, np.array([replay_memory[l, -1]])])
             
+            y = state_rewards + gamma * new_ans_2
 
-                
+            # print(new_ans_2)
+            # print(new_ans_1)
 
+            # print((y - new_ans_1) ** 2)
+            # mean = np.mean((y - new_ans_1) ** 2)
+            mean = (y - new_ans_1) ** 2
+            # print(mean)
+            # exit()
+            # print(new_ans_1)
+            policy_model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001), loss=asymmetric_loss(mean))
+
+            policy_model.train_on_batch(x=policy_network_input, y=y)
 
             
-            
-            
-            # print(ans)
             exit()
 
         
-
-
-
-        action1 = None
-        if current_Q[k, 0] >= current_Q[k, 1]:
-            action1 = 1
-        else:
-            action1 = 2
+        # action1 = None
+        # if current_Q[k, 0] >= current_Q[k, 1]:
+        #     action1 = 1
+        # else:
+        #     action1 = 2
 
         j = k
 
