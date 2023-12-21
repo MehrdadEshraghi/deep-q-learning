@@ -3,32 +3,19 @@ from keras.models import Sequential
 from keras.layers import Dense
 from collections import deque
 import random
+import keras
+import os
 
-def save_optimal_policy(optimal_policy, filename='optimal_policy.csv'):
-    print(optimal_policy.shape)
-    with open(filename, 'w') as file:
-        for i in range(optimal_policy.shape[2]):
-            for j in range(optimal_policy.shape[0]):
-                for k in range(optimal_policy.shape[1]):
-                    file.write(f"{j},{k},{i + 1},{optimal_policy[j][k][i] + 1}\n")
-    print(f"Optimal policy with queue saved to {filename}")
+from utils import save_optimal_policy, calculate_optimal_policy, calculate_f1_score
 
-def calculate_optimal_policy(agent):
-    optimal_policy = np.zeros((31, 31, 2), dtype=int)
-    for i in range(31):
-        for j in range(31):
-            for k in range(2):
-                state = np.array([[i, j, k]])
-                action = agent.act(state)
-                optimal_policy[i][j][k] = action
-    return optimal_policy
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.gamma = 0.95
+        self.gamma = 0.99
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
@@ -40,7 +27,7 @@ class DQNAgent:
         model.add(Dense(24, input_dim=self.state_size, activation='relu'))
         model.add(Dense(24, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
-        model.compile(loss='mse', optimizer='adam')
+        model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate))
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -64,10 +51,10 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-EPISODES = 2
+EPISODES = 100
 queue_1_size = 0
 queue_2_size = 0
-batch_size = 32
+batch_size = 1024
 
 state_size = 3
 action_size = 2
@@ -77,7 +64,7 @@ agent = DQNAgent(state_size, action_size)
 for e in range(EPISODES):
     state = np.array([[queue_1_size, queue_2_size, 0]])
 
-    for time in range(100):
+    for time in range(1024):
         action = agent.act(state)
         
         if action == 0:
@@ -118,12 +105,10 @@ for e in range(EPISODES):
     
     print(f"Episode: {e + 1}/{EPISODES}, Exploration Rate: {agent.epsilon}")
 
-agent.model.save("trained_model.keras")
-print("Model saved successfully")
+agent.model.save("models/trained_model21.keras")
 
 optimal_policy = calculate_optimal_policy(agent)
-print("Optimal Policy with Queue:")
-print(optimal_policy)
 
+save_optimal_policy(optimal_policy, 'optimal_policies/optimal_policy21.csv')
 
-save_optimal_policy(optimal_policy, 'optimal_policy.csv')
+print(calculate_f1_score('optimal_policies/optimal_policy21.csv'))

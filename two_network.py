@@ -4,16 +4,6 @@ from keras import layers
 import sys
 import tensorflow as tf
 from random import random, randint, sample
-import keras.backend as K
-
-print(tf.executing_eagerly())
-# Q-learning with function approximation
-
-# aa = np.array([[1, 2, 3], [4, 5, 6]])
-
-# print(aa[:, -1].shape)
-
-# exit()
 
 class CustomLayer(tf.keras.layers.Layer):
     def __init__(self):
@@ -21,7 +11,6 @@ class CustomLayer(tf.keras.layers.Layer):
 
     def call(self, inputs):
         # Perform operations on inputs (y_pred)
-        print('shiiiiiiiiiitttt')
         print(inputs[0])
         modified_pred = inputs * 2  # Example: Doubling the values
 
@@ -82,8 +71,7 @@ def asymmetric_loss(new_ans_1):
 
         ans = tf.convert_to_tensor(new_ans_1)
         # print(type(ans))
-        print(ans)
-        return shit
+        return ans
         
     return loss
 
